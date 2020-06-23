@@ -10,91 +10,202 @@ h1 {
   font-size: 72pt;
 }
 
-#no {
-  color: red
+.container {
+  float: left;
+  margin-left: 20px;
 }
 
-#yes {
-  color: #00ff00;
+#container {
   display: none;
 }
 
-#countdown {
+.no {
+  color: red
+}
+
+.yes {
+  color: #00ff00;
   display: none;
 }
     </style>
     <script type="text/javascript">
-const getAdvent = function(christmasDay) {
-  const christmasDayDay = christmasDay.getDay();
+const timeComponents = ['Days', 'Hours', 'Minutes', 'Seconds'];
+const categories = [
+  {
+    locale: 'usa',
+    description: 'USA - The Friday after Thanksgiving',
+    targetDate: year => {
+      // Thanksgiving is the 4th Thursday of November
+      let thanksgiving = new Date(year, 10, 1);
+      let thanksgivingDay = thanksgiving.getDay();
+      if(thanksgivingDay < 5) {
+        return new Date(year, 10, 27 - thanksgivingDay);
+      }
+      return new Date(year, 10, 34 - thanksgivingDay);
+    }
+  },
+  {
+    locale: 'europe',
+    description: 'European traditional - Christmas Eve',
+    targetDate: year => new Date(year, 11, 24) // Christmas Eve
+  },
+  {
+    locale: 'christian',
+    description: 'Christian - The start of Advent',
+    targetDate: year => {
+      const christmasDay = new Date(year, 11, 25);
+      const christmasDayDay = christmasDay.getDay();
 
-  let advent = new Date(christmasDay);
-  if(0 == christmasDayDay) { // Sunday
-    advent.setDate(-3); // November 27th
-  } else {
-    advent.setDate(4 - christmasDayDay);
+      let advent = new Date(christmasDay);
+      if(0 == christmasDayDay) { // Sunday
+        advent.setDate(-3); // November 27th
+      } else {
+        advent.setDate(4 - christmasDayDay);
+      }
+      return advent;
+    }
+  },
+  {
+    locale: 'generic',
+    description: 'Generic - The first of December',
+    targetDate: year => new Date(year, 11, 1)
   }
-  return advent;
+];
+const messages = [
+  {
+    type: 'yes',
+    message: 'Yes!'
+  },
+  {
+    type: 'no',
+    message: 'No'
+  }
+];
+
+const createDescription = function(categeory) {
+  let descriptionTd = document.createElement('td');
+  descriptionTd.setAttribute('colspan', 4);
+  descriptionTd.innerHTML = categeory.description;
+  return descriptionTd;
 }
-let now = new Date();
+
+const createYesNo = function(category) {
+  let categoryTd = document.createElement('td');
+  categoryTd.setAttribute('colspan', 4);
+  for(let i = 0; i < messages.length; ++i) {
+    let typeH1 = document.createElement('h1');
+    typeH1.setAttribute('id', [messages[i].type, category.locale].join('_'));
+    typeH1.setAttribute('class', messages[i].type);
+    typeH1.innerHTML = messages[i].message;
+    categoryTd.appendChild(typeH1);
+  }
+  return categoryTd;
+}
+
+const createTimesTh = function(category, timeComponent) {
+  let timeTh = document.createElement('th');
+  timeTh.innerHTML = timeComponent;
+  return timeTh;
+}
+
+const createTimesTd = function(category, timeComponent) {
+  let timeTd = document.createElement('td');
+  timeTd.setAttribute('id', [category.locale, timeComponent.toLowerCase()].join('_'));
+  return timeTd;
+}
+
+const createForLocale = function(category, now) {
+  let div = document.createElement('div');
+  div.setAttribute('class', 'container');
+  let table = document.createElement('table');
+  let trYesNo = document.createElement('tr');
+  let trDescription = document.createElement('tr');
+  let trDate = document.createElement('tr');
+  let trTimesTh = document.createElement('tr');
+  let trTimesTd = document.createElement('tr');
+  let tdDate = document.createElement('td');
+  table.appendChild(trYesNo);
+  table.appendChild(trDescription);
+  table.appendChild(trDate);
+  table.appendChild(trTimesTh);
+  table.appendChild(trTimesTd);
+
+  let targetDate = category.targetDate(now.getFullYear());
+  let dayName = targetDate.toLocaleDateString(navigator.location, {weekday: 'long'});
+  let monthName = targetDate.toLocaleDateString(navigator.location, {month: 'long'})
+  trDate.appendChild(tdDate);
+  tdDate.innerHTML = `${dayName}, ${targetDate.getDate()} ${monthName} ${targetDate.getFullYear()}`;
+  tdDate.setAttribute('colspan', 4);
+  trYesNo.appendChild(createYesNo(category));
+  trDescription.appendChild(createDescription(category));
+  for(let j = 0; j < timeComponents.length; ++j) {
+    trTimesTh.appendChild(createTimesTh(category, timeComponents[j]));
+    trTimesTd.appendChild(createTimesTd(category, timeComponents[j]));
+  }
+  div.appendChild(table);
+  return div;
+}
+
+const now = new Date();
 const christmasDay = new Date(now.getFullYear(), 11, 25);
-let targetDate = getAdvent(christmasDay);
 var interval;
 
-const yes = function() {
-  window.clearInterval(interval);
-  document.getElementById('no').style = "display: none";
-  document.getElementById('yes').style = "display: inherit";
-  document.getElementById('countdown').style = "display: none"
-  return false;
-}
-
 const updateTime = function() {
-  now = new Date();
-  var millisToGo = (targetDate - now);
-  if(millisToGo < 1000) {
-    return yes();
-  }
-  var timeToGo = (millisToGo / 1000) / 86400;
-  var daysToGo = parseInt(timeToGo);
-  var remainder = (timeToGo - daysToGo) * 24;
-  var hoursToGo = parseInt(remainder);
-  remainder = (remainder - hoursToGo) * 60;
-  var minutesToGo = parseInt(remainder);
-  remainder = (remainder - minutesToGo) * 60;
-  var secondsToGo = parseInt(remainder);
+  const now = new Date();
+  //const now = new Date(2020, 11, 24);
+  let updated = false;
+  for(let i = 0; i < categories.length; ++i) {
+    let targetDate = categories[i].targetDate(now.getFullYear());
+    let millisToGo = (targetDate - now);
 
-  document.getElementById('days').innerHTML = daysToGo;
-  document.getElementById('hours').innerHTML = hoursToGo;
-  document.getElementById('minutes').innerHTML = minutesToGo;
-  document.getElementById('seconds').innerHTML = secondsToGo;
-  return true;
+    if(millisToGo < 1000) {
+      document.getElementById('no_' + categories[i].locale).style = "display: none";
+      document.getElementById('yes_' + categories[i].locale).style = "display: inherit";
+      document.getElementById(categories[i].locale + '_days').innerHTML = 0;
+      document.getElementById(categories[i].locale + '_hours').innerHTML = 0;
+      document.getElementById(categories[i].locale + '_minutes').innerHTML = 0;
+      document.getElementById(categories[i].locale + '_seconds').innerHTML = 0;
+      // this one is yes
+      continue;
+    }
+
+    updated = true;
+    let timeToGo = (millisToGo / 1000) / 86400;
+    let daysToGo = parseInt(timeToGo);
+    let remainder = (timeToGo - daysToGo) * 24;
+    let hoursToGo = parseInt(remainder);
+    remainder = (remainder - hoursToGo) * 60;
+    let minutesToGo = parseInt(remainder);
+    remainder = (remainder - minutesToGo) * 60;
+    let secondsToGo = parseInt(remainder);
+
+    document.getElementById(categories[i].locale + '_days').innerHTML = daysToGo;
+    document.getElementById(categories[i].locale + '_hours').innerHTML = hoursToGo;
+    document.getElementById(categories[i].locale + '_minutes').innerHTML = minutesToGo;
+    document.getElementById(categories[i].locale + '_seconds').innerHTML = secondsToGo;
+
+  }
+  if(!updated) {
+    window.clearInterval(interval);
+  }
+  return updated;
 }
 
 window.onload = function() {
+  for(let i = 0; i < categories.length; ++i) {
+    document.getElementById('container').appendChild(createForLocale(categories[i], now));
+  }
+
+  document.getElementById('container').style = "display: inherit";
+  document.getElementById('staticNo').style = "display: none";
   if(updateTime()) {
     interval = window.setInterval(updateTime, 1000);
-    document.getElementById('countdown').style = "display: inherit"
   }
 }
     </script>
   </head>
   <body>
-    <h1 id="no">No</h1>
-    <h1 id="yes">Yes!</h1>
-    <br/>
-    <table id="countdown">
-      <tr>
-        <th>Days</th>
-        <th>Hours</th>
-        <th>Minutes</th>
-        <th>Seconds</th>
-      </tr>
-      <tr>
-        <td id="days"/>
-        <td id="hours"/>
-        <td id="minutes"/>
-        <td id="seconds"/>
-      </tr>
-    </table>
+    <h1 class="no" id="staticNo">No</h1>
+    <div id="container"></div>
   </body>
 </html>
